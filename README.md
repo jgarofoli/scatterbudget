@@ -24,6 +24,17 @@ Delta-method uncertainty propagation and Monte Carlo sensitivity analysis are bo
 
 For example, the [Stefan–Boltzmann law](https://en.wikipedia.org/wiki/Stefan%E2%80%93Boltzmann_law) `P = σ·A·T⁴` for radiative heat loss ([try it](https://jgarofoli.github.io/scatterbudget/#f=P+%3D+sb+*+A+*+T%5E4&v=A%3A2%3A0.1%2CT%3A800%3A160%2Csb%3A5.67e-8%3A0&n=10000&t=15) with a plausible ±20% uncertainty on a rough temperature measurement) — the delta method and the Monte Carlo simulation disagree on the output uncertainty by roughly 20%, because the T⁴ term is sharply nonlinear over that range. A linear "value ± σ" summary alone would hide that.
 
+## Development
+
+`index.html` is the entire deployed page — no build step, no bundler, nothing else ships. The regression tests live alongside it as dev-only tooling and never touch that file's dependencies:
+
+```sh
+npm install
+npm test
+```
+
+This runs a [Playwright](https://playwright.dev/) suite (via Node's built-in test runner) covering parsing, both computation methods, the divergence flag, chart/table labeling, and the shareable-URL state — including a couple of regressions that shipped and got caught this way, like the URL silently resetting variable values on reload, and σ rendering as the wrong Greek letter (Σ) under the header's uppercase styling. The suite intercepts the CDN requests for math.js and Chart.js and serves vendored copies from `tests/fixtures/` instead, so it runs offline and doesn't depend on jsdelivr being reachable.
+
 ## License
 
 [CC0 1.0 Universal](LICENSE) — public domain. Use it, fork it, ship it, no attribution required.

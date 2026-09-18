@@ -1,0 +1,12 @@
+{
+  "name": "scatterbudget",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Local regression tests for the scatterbudget single-page app. Not part of the deployed page.",
+  "scripts": {
+    "test": "node --test tests/app.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}
