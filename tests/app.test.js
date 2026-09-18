@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { chromium } = require('playwright');
 
-const INDEX_URL = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const INDEX_URL = 'file://' + path.resolve(__dirname, '..', 'docs', 'index.html');
 const MATH_FIXTURE = path.resolve(__dirname, 'fixtures', 'math.js');
 const CHART_FIXTURE = path.resolve(__dirname, 'fixtures', 'chart.umd.js');
 
