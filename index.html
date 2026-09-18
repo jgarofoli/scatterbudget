@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>scatterbudget</title>
+<meta name="description" content="Propagate uncertainty two ways — delta method and Monte Carlo — and see where they disagree.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.3/math.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e2229;
+    --border: #2b303a;
+    --text: #e6e8eb;
+    --text-dim: #9aa1ac;
+    --accent: #6ea8fe;
+    --accent-2: #f2b84b;
+    --good: #4fd1a5;
+    --warn: #ef7d5c;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.45;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
+  header h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+  header p { color: var(--text-dim); margin: 0 0 24px; max-width: 68ch; }
+  section { margin-bottom: 28px; }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; color: var(--text); border-left: 3px solid var(--accent); padding-left: 10px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 4px; }
+  input[type=text], input[type=number] {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 8px 10px; font-family: var(--mono); font-size: 0.95rem; width: 100%;
+  }
+  input[type=text]:focus, input[type=number]:focus { outline: none; border-color: var(--accent); }
+  .formula-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .formula-row > div:first-child { flex: 1 1 320px; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 14px; font-size: 0.85rem; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #0c1220; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  .error { color: var(--warn); font-size: 0.85rem; margin-top: 8px; min-height: 1.2em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td input { width: 110px; }
+  .var-table td:first-child { font-family: var(--mono); color: var(--accent); }
+  .n-control { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .n-control input[type=range] { flex: 1; accent-color: var(--accent); }
+  .n-control span { font-family: var(--mono); color: var(--text-dim); min-width: 90px; text-align: right; }
+  .headline { display: flex; gap: 16px; flex-wrap: wrap; }
+  .stat-card { flex: 1 1 260px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .stat-card .label { color: var(--text-dim); font-size: 0.8rem; margin-bottom: 6px; }
+  .stat-card .value { font-family: var(--mono); font-size: 1.4rem; }
+  .stat-card .value .pm { color: var(--text-dim); font-size: 1rem; margin: 0 4px; }
+  .divergence-banner {
+    margin-top: 14px; padding: 12px 14px; border-radius: 8px; font-size: 0.9rem;
+    border: 1px solid var(--border);
+  }
+  .divergence-banner.flag { background: rgba(239,125,92,0.12); border-color: var(--warn); color: #ffcdbb; }
+  .divergence-banner.ok { background: rgba(79,209,165,0.10); border-color: var(--good); color: #bdf5df; }
+  .threshold-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.8rem; color: var(--text-dim); }
+  .threshold-row input { width: 70px; }
+  .pct-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .pct-bar { flex: 1; height: 8px; background: var(--panel); border-radius: 4px; overflow: hidden; }
+  .pct-bar-fill { height: 100%; background: var(--accent); }
+  .scatter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .scatter-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .scatter-card .r-label { font-size: 0.8rem; color: var(--text-dim); margin-top: 6px; font-family: var(--mono); }
+  .assumptions { font-size: 0.78rem; color: var(--text-dim); margin-top: 10px; }
+  canvas { max-width: 100%; }
+  footer { color: var(--text-dim); font-size: 0.78rem; margin-top: 40px; text-align: center; }
+  footer a { color: var(--accent); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>scatterbudget</h1>
+    <p>Enter a formula. See its uncertainty two ways — a closed-form delta-method budget and a Monte Carlo scatter — and where the two disagree. Disagreement is the signal that a reported "value &plusmn; &sigma;" is hiding nonlinearity or interaction.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Formula</h2>
+    <div class="formula-row">
+      <div>
+        <label for="formula-input">f(x&#8321;, x&#8322;, &hellip;)</label>
+        <input type="text" id="formula-input" value="v = d / t" spellcheck="false">
+      </div>
+      <button class="primary" id="parse-btn">Parse</button>
+    </div>
+    <div class="error" id="parse-error"></div>
+    <div class="presets">
+      <button data-preset="v = d / t">v = d/t</button>
+      <button data-preset="R = V / I">R = V/I</button>
+      <button data-preset="T = 2 * pi * sqrt(L / g)">T = 2&pi;&radic;(L/g)</button>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="vars-section">
+    <h2>Inputs</h2>
+    <table class="var-table">
+      <thead><tr><th>Variable</th><th>Nominal value</th><th>&sigma; (uncertainty)</th></tr></thead>
+      <tbody id="var-table-body"></tbody>
+    </table>
+    <div class="n-control">
+      <label for="n-slider" style="margin:0;white-space:nowrap;">Monte Carlo samples</label>
+      <input type="range" id="n-slider" min="1000" max="100000" step="1000" value="10000">
+      <span id="n-value">10,000</span>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="primary" id="compute-btn">Compute</button>
+    </div>
+    <div class="assumptions">Assumes each input is independently normally distributed around its nominal value. No covariance between inputs.</div>
+  </section>
+
+  <section class="hidden" id="results-section">
+    <h2>Headline comparison</h2>
+    <div class="panel">
+      <div class="headline">
+        <div class="stat-card">
+          <div class="label">Delta method (linear, at nominal point)</div>
+          <div class="value" id="linear-headline">&mdash;</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Monte Carlo (empirical, full sampled range)</div>
+          <div class="value" id="mc-headline">&mdash;</div>
+        </div>
+      </div>
+      <div id="divergence-banner" class="divergence-banner"></div>
+      <div class="threshold-row">
+        <label for="threshold-input" style="margin:0;">Divergence flag threshold</label>
+        <input type="number" id="threshold-input" value="15" min="1" max="100" step="1"> %
+      </div>
+    </div>
+
+    <h2 style="margin-top:24px;">Uncertainty budget (delta method)</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Input</th><th>&part;f/&part;x at nominal</th><th>Contribution to &sigma;y&sup2;</th><th></th></tr></thead>
+        <tbody id="budget-table-body"></tbody>
+      </table>
+    </div>
+
+    <h2 style="margin-top:24px;">Scatter grid (Monte Carlo, per input)</h2>
+    <div class="panel">
+      <div class="scatter-grid" id="scatter-grid"></div>
+    </div>
+
+    <h2 style="margin-top:24px;">Output distribution</h2>
+    <div class="panel">
+      <canvas id="histogram-chart" height="90"></canvas>
+      <div class="assumptions">Dashed curve: the Gaussian implied by the delta method (nominal &plusmn; linear &sigma;), scaled to the same sample count and bin width as the Monte Carlo histogram. A histogram that doesn't track the dashed curve means the formula is nonlinear over the range these uncertainties span.</div>
+    </div>
+  </section>
+
+  <footer>
+    <a href="https://github.com/" target="_blank" rel="noopener">scatterbudget</a> &middot; math.js + Chart.js, no backend, everything runs in your browser.
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  let currentNode = null;
+  let currentVars = []; // [{name, value, sigma}]
+  let scatterCharts = [];
+  let histogramChart = null;
+
+  const formulaInput = document.getElementById('formula-input');
+  const parseBtn = document.getElementById('parse-btn');
+  const parseError = document.getElementById('parse-error');
+  const varsSection = document.getElementById('vars-section');
+  const varTableBody = document.getElementById('var-table-body');
+  const resultsSection = document.getElementById('results-section');
+  const nSlider = document.getElementById('n-slider');
+  const nValue = document.getElementById('n-value');
+  const computeBtn = document.getElementById('compute-btn');
+  const thresholdInput = document.getElementById('threshold-input');
+
+  document.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      formulaInput.value = btn.getAttribute('data-preset');
+      parseFormula();
+    });
+  });
+
+  nSlider.addEventListener('input', () => {
+    nValue.textContent = Number(nSlider.value).toLocaleString();
+  });
+
+  parseBtn.addEventListener('click', parseFormula);
+  formulaInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') parseFormula();
+  });
+  computeBtn.addEventListener('click', compute);
+
+  function stripAssignment(text) {
+    const eq = text.indexOf('=');
+    if (eq === -1) return text.trim();
+    return text.slice(eq + 1).trim();
+  }
+
+  function extractVariables(node) {
+    const names = new Set();
+    node.traverse(n => {
+      if (n.isSymbolNode && !(n.name in math)) {
+        names.add(n.name);
+      }
+    });
+    return Array.from(names).sort();
+  }
+
+  function parseFormula() {
+    parseError.textContent = '';
+    const raw = formulaInput.value;
+    const exprText = stripAssignment(raw);
+    if (!exprText) {
+      parseError.textContent = 'Enter a formula.';
+      return;
+    }
+    let node;
+    try {
+      node = math.parse(exprText);
+    } catch (e) {
+      parseError.textContent = 'Could not parse: ' + e.message;
+      return;
+    }
+    const names = extractVariables(node);
+    if (names.length === 0) {
+      parseError.textContent = 'No free variables found in that expression.';
+      return;
+    }
+    currentNode = node;
+    const prior = new Map(currentVars.map(v => [v.name, v]));
+    currentVars = names.map(name => prior.get(name) || { name, value: 1, sigma: 0.1 });
+    renderVarTable();
+    varsSection.classList.remove('hidden');
+    resultsSection.classList.add('hidden');
+  }
+
+  function renderVarTable() {
+    varTableBody.innerHTML = '';
+    currentVars.forEach((v, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + v.name + '</td>' +
+        '<td><input type="number" step="any" data-idx="' + i + '" data-field="value" value="' + v.value + '"></td>' +
+        '<td><input type="number" step="any" min="0" data-idx="' + i + '" data-field="sigma" value="' + v.sigma + '"></td>';
+      varTableBody.appendChild(tr);
+    });
+    varTableBody.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const idx = Number(inp.getAttribute('data-idx'));
+        const field = inp.getAttribute('data-field');
+        const val = parseFloat(inp.value);
+        currentVars[idx][field] = isNaN(val) ? 0 : val;
+      });
+    });
+  }
+
+  function randNormal(mean, sigma) {
+    if (sigma <= 0) return mean;
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return mean + sigma * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function pearson(x, y) {
+    const n = x.length;
+    let sx = 0, sy = 0;
+    for (let i = 0; i < n; i++) { sx += x[i]; sy += y[i]; }
+    const mx = sx / n, my = sy / n;
+    let num = 0, dx2 = 0, dy2 = 0;
+    for (let i = 0; i < n; i++) {
+      const dx = x[i] - mx, dy = y[i] - my;
+      num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
+    }
+    const denom = Math.sqrt(dx2 * dy2);
+    return denom === 0 ? 0 : num / denom;
+  }
+
+  function fmt(x) {
+    if (!isFinite(x)) return String(x);
+    const abs = Math.abs(x);
+    if (abs !== 0 && (abs < 1e-3 || abs >= 1e5)) return x.toExponential(3);
+    return Number(x.toPrecision(5)).toString();
+  }
+
+  function compute() {
+    if (!currentNode) return;
+    const N = Number(nSlider.value);
+    const nominalScope = {};
+    currentVars.forEach(v => { nominalScope[v.name] = v.value; });
+
+    const code = currentNode.compile();
+    let y0;
+    try {
+      y0 = code.evaluate(nominalScope);
+    } catch (e) {
+      parseError.textContent = 'Could not evaluate at nominal values: ' + e.message;
+      return;
+    }
+
+    // Delta method
+    const contributions = [];
+    let sumSq = 0;
+    for (const v of currentVars) {
+      let derivVal;
+      try {
+        const derivNode = math.derivative(currentNode, v.name);
+        derivVal = derivNode.compile().evaluate(nominalScope);
+      } catch (e) {
+        parseError.textContent = 'Could not differentiate with respect to ' + v.name + ': ' + e.message;
+        return;
+      }
+      const variance = Math.pow(derivVal * v.sigma, 2);
+      contributions.push({ name: v.name, deriv: derivVal, variance });
+      sumSq += variance;
+    }
+    const linearSigma = Math.sqrt(sumSq);
+    contributions.forEach(c => { c.pct = sumSq > 0 ? (c.variance / sumSq * 100) : 0; });
+
+    // Monte Carlo
+    const samples = {};
+    currentVars.forEach(v => { samples[v.name] = new Float64Array(N); });
+    const yArr = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      const scope = {};
+      currentVars.forEach(v => {
+        const s = randNormal(v.value, v.sigma);
+        samples[v.name][i] = s;
+        scope[v.name] = s;
+      });
+      yArr[i] = code.evaluate(scope);
+    }
+    let ySum = 0;
+    for (let i = 0; i < N; i++) ySum += yArr[i];
+    const mcMean = ySum / N;
+    let sqSum = 0;
+    for (let i = 0; i < N; i++) sqSum += Math.pow(yArr[i] - mcMean, 2);
+    const mcSigma = Math.sqrt(sqSum / (N - 1));
+
+    renderResults({ y0, linearSigma, contributions, mcMean, mcSigma, samples, yArr, N });
+  }
+
+  function renderResults(r) {
+    resultsSection.classList.remove('hidden');
+
+    document.getElementById('linear-headline').innerHTML =
+      fmt(r.y0) + '<span class="pm">&plusmn;</span>' + fmt(r.linearSigma);
+    document.getElementById('mc-headline').innerHTML =
+      fmt(r.mcMean) + '<span class="pm">&plusmn;</span>' + fmt(r.mcSigma);
+
+    renderDivergenceBanner(r.linearSigma, r.mcSigma);
+    thresholdInput.oninput = () => renderDivergenceBanner(r.linearSigma, r.mcSigma);
+
+    const budgetBody = document.getElementById('budget-table-body');
+    budgetBody.innerHTML = '';
+    const sorted = [...r.contributions].sort((a, b) => b.pct - a.pct);
+    sorted.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + c.name + '</td>' +
+        '<td>' + fmt(c.deriv) + '</td>' +
+        '<td><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:' +
+          Math.min(100, c.pct).toFixed(1) + '%"></div></div><span>' + c.pct.toFixed(1) + '%</span></div></td>' +
+        '<td></td>';
+      budgetBody.appendChild(tr);
+    });
+
+    renderScatterGrid(r.samples, r.yArr, r.N);
+    renderHistogram(r.yArr, r.y0, r.linearSigma, r.N);
+  }
+
+  function renderDivergenceBanner(linearSigma, mcSigma) {
+    const threshold = Number(thresholdInput.value) || 15;
+    const relDiff = linearSigma === 0 ? (mcSigma === 0 ? 0 : Infinity) : Math.abs(linearSigma - mcSigma) / linearSigma * 100;
+    const banner = document.getElementById('divergence-banner');
+    if (relDiff > threshold) {
+      banner.className = 'divergence-banner flag';
+      banner.textContent = '⚠ Linear and Monte Carlo σ differ by ' + relDiff.toFixed(1) +
+        '% (threshold ' + threshold + '%). Nonlinear regime — trust the histogram over the formula.';
+    } else {
+      banner.className = 'divergence-banner ok';
+      banner.textContent = '✓ Linear and Monte Carlo σ agree within ' + relDiff.toFixed(1) +
+        '% (threshold ' + threshold + '%). The linear approximation holds over this range.';
+    }
+  }
+
+  function downsample(arr, maxPoints) {
+    if (arr.length <= maxPoints) return arr;
+    const step = arr.length / maxPoints;
+    const out = new Float64Array(maxPoints);
+    for (let i = 0; i < maxPoints; i++) out[i] = arr[Math.floor(i * step)];
+    return out;
+  }
+
+  function renderScatterGrid(samples, yArr, N) {
+    scatterCharts.forEach(c => c.destroy());
+    scatterCharts = [];
+    const grid = document.getElementById('scatter-grid');
+    grid.innerHTML = '';
+    const maxPoints = 2000;
+    const idxStep = Math.max(1, Math.floor(N / maxPoints));
+
+    currentVars.forEach(v => {
+      const xArr = samples[v.name];
+      const points = [];
+      for (let i = 0; i < N; i += idxStep) {
+        points.push({ x: xArr[i], y: yArr[i] });
+      }
+      const r = pearson(xArr, yArr);
+
+      const card = document.createElement('div');
+      card.className = 'scatter-card';
+      const canvas = document.createElement('canvas');
+      canvas.height = 200;
+      card.appendChild(canvas);
+      const rLabel = document.createElement('div');
+      rLabel.className = 'r-label';
+      rLabel.textContent = v.name + '  —  Pearson r = ' + r.toFixed(3);
+      card.appendChild(rLabel);
+      grid.appendChild(card);
+
+      const chart = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: v.name,
+            data: points,
+            backgroundColor: 'rgba(110, 168, 254, 0.5)',
+            pointRadius: 2,
+          }]
+        },
+        options: {
+          animation: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: v.name, color: '#9aa1ac' }, ticks: { color: '#9aa1ac' }, grid: { color: '#2b303a' } },
+            y: { title: { display: true, text: 'y', color: '#9aa1ac' }, ticks: { color: '#9aa1ac' }, grid: { color: '#2b303a' } },
+          }
+        }
+      });
+      scatterCharts.push(chart);
+    });
+  }
+
+  function renderHistogram(yArr, y0, linearSigma, N) {
+    if (histogramChart) histogramChart.destroy();
+    const canvas = document.getElementById('histogram-chart');
+
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < N; i++) {
+      if (yArr[i] < min) min = yArr[i];
+      if (yArr[i] > max) max = yArr[i];
+    }
+    const binCount = 40;
+    const binWidth = (max - min) / binCount || 1;
+    const counts = new Array(binCount).fill(0);
+    for (let i = 0; i < N; i++) {
+      let b = Math.floor((yArr[i] - min) / binWidth);
+      if (b >= binCount) b = binCount - 1;
+      if (b < 0) b = 0;
+      counts[b]++;
+    }
+    const labels = [];
+    const centers = [];
+    for (let b = 0; b < binCount; b++) {
+      const center = min + (b + 0.5) * binWidth;
+      centers.push(center);
+      labels.push(fmt(center));
+    }
+    const gaussian = centers.map(x => {
+      if (linearSigma === 0) return x === y0 ? N : 0;
+      const pdf = (1 / (linearSigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - y0) / linearSigma, 2));
+      return pdf * N * binWidth;
+    });
+
+    histogramChart = new Chart(canvas.getContext('2d'), {
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Monte Carlo',
+            data: counts,
+            backgroundColor: 'rgba(110, 168, 254, 0.55)',
+            borderRadius: 2,
+          },
+          {
+            type: 'line',
+            label: 'Delta method (Gaussian)',
+            data: gaussian,
+            borderColor: '#f2b84b',
+            borderDash: [6, 4],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3,
+          }
+        ]
+      },
+      options: {
+        animation: false,
+        plugins: { legend: { labels: { color: '#e6e8eb' } } },
+        scales: {
+          x: { ticks: { color: '#9aa1ac', maxTicksLimit: 10 }, grid: { color: '#2b303a' } },
+          y: { title: { display: true, text: 'count', color: '#9aa1ac' }, ticks: { color: '#9aa1ac' }, grid: { color: '#2b303a' } },
+        }
+      }
+    });
+  }
+
+  // Load default preset on start.
+  parseFormula();
+})();
+</script>
+</body>
+</html>
