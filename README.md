@@ -6,7 +6,7 @@ A single-page tool that propagates uncertainty through a formula two ways at onc
 
 ## What it does
 
-Enter a formula (e.g. `F = 0.5 * rho * v^2 * Cd * A`), give each input a nominal value and an uncertainty (σ), and scatterbudget:
+Enter a formula (e.g. [`F = 0.5 * rho * v^2 * Cd * A`](https://jgarofoli.github.io/scatterbudget/#f=F+%3D+0.5+*+rho+*+v%5E2+*+Cd+*+A&v=A%3A2.2%3A0.05%2CCd%3A0.3%3A0.02%2Crho%3A1.225%3A0.02%2Cv%3A30%3A3&n=10000&t=15) &mdash; aerodynamic drag force, with realistic values and uncertainties already filled in), give each input a nominal value and an uncertainty (σ), and scatterbudget:
 
 - computes the propagated output uncertainty analytically via symbolic partial derivatives (the standard "delta method" from a GUM-style uncertainty budget), and shows a per-input contribution table;
 - runs a Monte Carlo simulation from the same inputs and formula, and shows a scatter plot of the output against each input (with Pearson r) plus a histogram of the output distribution;
