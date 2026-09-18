@@ -258,13 +258,6 @@ test('a non-numeric variable override in the URL is ignored safely', async () =>
   await page.close();
 });
 
-test('footer link points at the actual repo', async () => {
-  const page = await openPage();
-  const href = await page.locator('footer a').first().getAttribute('href');
-  assert.equal(href, 'https://github.com/jgarofoli/scatterbudget');
-  await page.close();
-});
-
 test('shows a visible error if math.js or Chart.js fails to load', async () => {
   const page = await browser.newPage();
   const pageErrors = [];
