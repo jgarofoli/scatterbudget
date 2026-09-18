@@ -22,6 +22,8 @@ Anyone who reports or reads a measurement as "value ± uncertainty" and wants to
 
 Delta-method uncertainty propagation and Monte Carlo sensitivity analysis are both well-established techniques on their own. The gap is a tool that runs both on the *same* formula and inputs and puts the disagreement front and center — because that disagreement, not either number alone, is what tells you whether to trust the formula's uncertainty estimate or the simulation's.
 
+For example, the [Stefan–Boltzmann law](https://en.wikipedia.org/wiki/Stefan%E2%80%93Boltzmann_law) `P = σ·A·T⁴` for radiative heat loss ([try it](https://jgarofoli.github.io/scatterbudget/#f=P+%3D+sb+*+A+*+T%5E4&v=A%3A2%3A0.1%2CT%3A800%3A160%2Csb%3A5.67e-8%3A0&n=10000&t=15) with a plausible ±20% uncertainty on a rough temperature measurement) — the delta method and the Monte Carlo simulation disagree on the output uncertainty by roughly 20%, because the T⁴ term is sharply nonlinear over that range. A linear "value ± σ" summary alone would hide that.
+
 ## License
 
 [CC0 1.0 Universal](LICENSE) — public domain. Use it, fork it, ship it, no attribution required.
