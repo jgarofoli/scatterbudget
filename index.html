@@ -214,6 +214,7 @@
 
   nSlider.addEventListener('input', () => {
     nValue.textContent = Number(nSlider.value).toLocaleString();
+    updateUrl();
   });
 
   parseBtn.addEventListener('click', parseFormula);
@@ -221,6 +222,64 @@
     if (e.key === 'Enter') parseFormula();
   });
   computeBtn.addEventListener('click', compute);
+  thresholdInput.addEventListener('input', updateUrl);
+
+  function updateUrl() {
+    if (!currentNode) return;
+    const params = new URLSearchParams();
+    params.set('f', formulaInput.value.trim());
+    if (currentVars.length) {
+      params.set('v', currentVars.map(v => v.name + ':' + v.value + ':' + v.sigma).join(','));
+    }
+    params.set('n', nSlider.value);
+    params.set('t', thresholdInput.value || '15');
+    const newHash = '#' + params.toString();
+    if (location.hash !== newHash) {
+      history.replaceState(null, '', newHash);
+    }
+  }
+
+  function loadFromUrl() {
+    if (!location.hash) return false;
+    const params = new URLSearchParams(location.hash.slice(1));
+    const f = params.get('f');
+    if (!f) return false;
+    formulaInput.value = f;
+    parseFormula();
+    if (!currentNode) return false;
+
+    const vParam = params.get('v');
+    if (vParam) {
+      const overrides = new Map();
+      vParam.split(',').forEach(entry => {
+        const parts = entry.split(':');
+        if (parts.length !== 3) return;
+        const [name, value, sigma] = parts;
+        overrides.set(name, { value: parseFloat(value), sigma: parseFloat(sigma) });
+      });
+      currentVars.forEach(v => {
+        const o = overrides.get(v.name);
+        if (!o) return;
+        if (!isNaN(o.value)) v.value = o.value;
+        if (!isNaN(o.sigma)) v.sigma = o.sigma;
+      });
+      renderVarTable();
+    }
+
+    const n = Number(params.get('n'));
+    if (!isNaN(n) && n > 0) {
+      nSlider.value = Math.min(100000, Math.max(1000, n));
+      nValue.textContent = Number(nSlider.value).toLocaleString();
+    }
+
+    const t = Number(params.get('t'));
+    if (!isNaN(t) && t > 0) {
+      thresholdInput.value = t;
+    }
+
+    compute();
+    return true;
+  }
 
   function splitAssignment(text) {
     const eq = text.indexOf('=');
@@ -271,6 +330,7 @@
     renderVarTable();
     varsSection.classList.remove('hidden');
     resultsSection.classList.add('hidden');
+    updateUrl();
   }
 
   function renderVarTable() {
@@ -289,6 +349,7 @@
         const field = inp.getAttribute('data-field');
         const val = parseFloat(inp.value);
         currentVars[idx][field] = isNaN(val) ? 0 : val;
+        updateUrl();
       });
     });
   }
@@ -547,8 +608,10 @@
     });
   }
 
-  // Load default preset on start.
-  parseFormula();
+  // Restore state from a shared/bookmarked URL, or load the default preset.
+  if (!loadFromUrl()) {
+    parseFormula();
+  }
 })();
 </script>
 </body>
