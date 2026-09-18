@@ -154,7 +154,7 @@
     <h2 style="margin-top:24px;">Uncertainty budget (delta method)</h2>
     <div class="panel">
       <table>
-        <thead><tr><th>Input</th><th>&part;f/&part;x at nominal</th><th>Contribution to &sigma;y&sup2;</th><th></th></tr></thead>
+        <thead><tr><th>Input</th><th id="budget-deriv-header">&part;f/&part;x at nominal</th><th id="budget-contrib-header">Contribution to &sigma;y&sup2;</th><th></th></tr></thead>
         <tbody id="budget-table-body"></tbody>
       </table>
     </div>
@@ -262,6 +262,10 @@
     }
     currentNode = node;
     currentOutputName = outputName;
+    document.getElementById('budget-deriv-header').textContent =
+      '∂' + outputName + '/∂x at nominal';
+    document.getElementById('budget-contrib-header').textContent =
+      'Contribution to σ' + outputName + '²';
     const prior = new Map(currentVars.map(v => [v.name, v]));
     currentVars = names.map(name => prior.get(name) || { name, value: 1, sigma: 0.1 });
     renderVarTable();
