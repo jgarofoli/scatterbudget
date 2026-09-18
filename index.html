@@ -55,6 +55,7 @@
   table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
   th { color: var(--text-dim); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  th .no-caps { text-transform: none; }
   td input { width: 110px; }
   .var-table td:first-child { font-family: var(--mono); color: var(--accent); }
   .n-control { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
@@ -117,7 +118,7 @@
   <section class="panel hidden" id="vars-section">
     <h2>Inputs</h2>
     <table class="var-table">
-      <thead><tr><th>Variable</th><th>Nominal value</th><th>&sigma; (uncertainty)</th></tr></thead>
+      <thead><tr><th>Variable</th><th>Nominal value</th><th><span class="no-caps">&sigma;</span> (uncertainty)</th></tr></thead>
       <tbody id="var-table-body"></tbody>
     </table>
     <div class="n-control">
@@ -154,7 +155,7 @@
     <h2 style="margin-top:24px;">Uncertainty budget (delta method)</h2>
     <div class="panel">
       <table>
-        <thead><tr><th>Input</th><th id="budget-deriv-header">&part;f/&part;x at nominal</th><th id="budget-contrib-header">Contribution to &sigma;y&sup2;</th><th></th></tr></thead>
+        <thead><tr><th>Input</th><th id="budget-deriv-header">&part;f/&part;x at nominal</th><th id="budget-contrib-header">Contribution to <span class="no-caps">&sigma;y&sup2;</span></th><th></th></tr></thead>
         <tbody id="budget-table-body"></tbody>
       </table>
     </div>
@@ -323,8 +324,8 @@
     currentOutputName = outputName;
     document.getElementById('budget-deriv-header').textContent =
       '∂' + outputName + '/∂x at nominal';
-    document.getElementById('budget-contrib-header').textContent =
-      'Contribution to σ' + outputName + '²';
+    document.getElementById('budget-contrib-header').innerHTML =
+      'Contribution to <span class="no-caps">σ' + outputName + '²</span>';
     const prior = new Map(currentVars.map(v => [v.name, v]));
     currentVars = names.map(name => prior.get(name) || { name, value: 1, sigma: 0.1 });
     renderVarTable();
