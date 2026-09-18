@@ -26,7 +26,7 @@ For example, the [Stefan–Boltzmann law](https://en.wikipedia.org/wiki/Stefan%E
 
 ## Development
 
-`index.html` is the entire deployed page — no build step, no bundler, nothing else ships. The regression tests live alongside it as dev-only tooling and never touch that file's dependencies:
+`docs/index.html` is the entire deployed page — no build step, no bundler, nothing else ships; GitHub Pages is configured to serve from the `docs/` folder specifically so that everything else in the repo (tests, `package.json`, dev tooling) stays out of the published site. The regression tests live at the repo root as dev-only tooling and never touch that file's dependencies:
 
 ```sh
 npm install
