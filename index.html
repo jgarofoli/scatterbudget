@@ -189,6 +189,7 @@
   }
 
   let currentNode = null;
+  let currentOutputName = 'y';
   let currentVars = []; // [{name, value, sigma}]
   let scatterCharts = [];
   let histogramChart = null;
@@ -221,10 +222,12 @@
   });
   computeBtn.addEventListener('click', compute);
 
-  function stripAssignment(text) {
+  function splitAssignment(text) {
     const eq = text.indexOf('=');
-    if (eq === -1) return text.trim();
-    return text.slice(eq + 1).trim();
+    if (eq === -1) return { outputName: 'y', exprText: text.trim() };
+    const lhs = text.slice(0, eq).trim();
+    const outputName = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(lhs) ? lhs : 'y';
+    return { outputName, exprText: text.slice(eq + 1).trim() };
   }
 
   function extractVariables(node) {
@@ -240,7 +243,7 @@
   function parseFormula() {
     parseError.textContent = '';
     const raw = formulaInput.value;
-    const exprText = stripAssignment(raw);
+    const { outputName, exprText } = splitAssignment(raw);
     if (!exprText) {
       parseError.textContent = 'Enter a formula.';
       return;
@@ -258,6 +261,7 @@
       return;
     }
     currentNode = node;
+    currentOutputName = outputName;
     const prior = new Map(currentVars.map(v => [v.name, v]));
     currentVars = names.map(name => prior.get(name) || { name, value: 1, sigma: 0.1 });
     renderVarTable();
@@ -465,7 +469,7 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { title: { display: true, text: v.name, color: '#9aa1ac' }, ticks: { color: '#9aa1ac' }, grid: { color: '#2b303a' } },
-            y: { title: { display: true, text: 'y', color: '#9aa1ac' }, ticks: { color: '#9aa1ac' }, grid: { color: '#2b303a' } },
+            y: { title: { display: true, text: currentOutputName, color: '#9aa1ac' }, ticks: { color: '#9aa1ac' }, grid: { color: '#2b303a' } },
           }
         }
       });
@@ -532,7 +536,7 @@
         animation: false,
         plugins: { legend: { labels: { color: '#e6e8eb' } } },
         scales: {
-          x: { ticks: { color: '#9aa1ac', maxTicksLimit: 10 }, grid: { color: '#2b303a' } },
+          x: { title: { display: true, text: currentOutputName, color: '#9aa1ac' }, ticks: { color: '#9aa1ac', maxTicksLimit: 10 }, grid: { color: '#2b303a' } },
           y: { title: { display: true, text: 'count', color: '#9aa1ac' }, ticks: { color: '#9aa1ac' }, grid: { color: '#2b303a' } },
         }
       }
