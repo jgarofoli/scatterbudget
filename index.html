@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>scatterbudget</title>
 <meta name="description" content="Propagate uncertainty two ways — delta method and Monte Carlo — and see where they disagree.">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.3/math.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@12.4.3/lib/browser/math.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
 <style>
   :root {
     --bg: #0f1115;
@@ -175,6 +175,14 @@
 <script>
 (function () {
   'use strict';
+
+  if (typeof math === 'undefined' || typeof Chart === 'undefined') {
+    document.querySelector('.wrap').insertAdjacentHTML('afterbegin',
+      '<div class="divergence-banner flag" style="margin-bottom:20px;">' +
+      '⚠ Could not load math.js and/or Chart.js from the CDN. Check your network connection and reload the page.' +
+      '</div>');
+    return;
+  }
 
   let currentNode = null;
   let currentVars = []; // [{name, value, sigma}]
